@@ -1,10 +1,11 @@
 from fastapi import APIRouter, HTTPException, Body, Depends, Header, BackgroundTasks
 from datetime import datetime
 import json
+from typing import Union
 from sqlalchemy.orm import Session
 from models.submissions import Submission, Team, get_db
 from core.scoring import calculate_score
-from api.models import MetricsPayload
+from api.models import MetricsPayload, CombinedMetricsPayload
 
 router = APIRouter()
 
@@ -15,9 +16,16 @@ logger = logging.getLogger(__name__)
 async def submit_metrics(
     background_tasks: BackgroundTasks,
     authorization: str = Header(..., alias="Authorization"),
-    metrics: MetricsPayload = Body(...),
+    payload: Union[MetricsPayload, CombinedMetricsPayload] = Body(...),
     db: Session = Depends(get_db),
 ):
+    # Handle both old and new payload formats
+    if isinstance(payload, CombinedMetricsPayload):
+        metrics = payload.business_metrics
+        perf_metrics = payload.performance_metrics
+    else:
+        metrics = payload
+        perf_metrics = None
     try:
         logger.info(f"Received submission request. Authorization: {authorization}")
         logger.debug(f"Metrics payload: {metrics}")
@@ -57,7 +65,8 @@ async def submit_metrics(
             metrics=json.dumps(metrics_dict),
             score=score,
             status='completed',
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
+            performance_metrics=json.dumps(perf_metrics.dict()) if perf_metrics else None
         )
         db.add(submission)
 
