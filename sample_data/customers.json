@@ -1,0 +1,37 @@
+[
+  {
+    "id": "cust0",
+    "name": "Sandra Woods",
+    "email": "kathleengutierrez@example.com",
+    "address": "129 Ralph Dale, Bauerstad, MS 54361",
+    "phone": "+91-9618230045"
+  },
+  {
+    "id": "cust1",
+    "name": "Ryan Holmes",
+    "email": "tmassey@example.net",
+    "address": "USNV Rodriguez, FPO AA 64425",
+    "phone": "+91-9581450946"
+  },
+  {
+    "id": "cust2",
+    "name": "Stephanie Larsen",
+    "email": "summersheather@example.net",
+    "address": "257 Jennifer Roads Suite 821, Ashleybury, PW 90369",
+    "phone": "+91-9228748637"
+  },
+  {
+    "id": "cust3",
+    "name": "Alexis Sullivan",
+    "email": "shannon82@example.com",
+    "address": "85825 Bradley Cove Apt. 699, Lake Robert, NH 85296",
+    "phone": "+91-9814286097"
+  },
+  {
+    "id": "cust4",
+    "name": "Nathan Mccall",
+    "email": "weaverkathleen@example.org",
+    "address": "641 Flores Corner Apt. 536, Mathismouth, NJ 46030",
+    "phone": "+91-9478775756"
+  }
+]

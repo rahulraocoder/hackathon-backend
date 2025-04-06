@@ -1,0 +1,20 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Evaluator API",
+            "type": "python",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": ["main:app", "--reload"],
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/hackathon-backend:${workspaceFolder}",
+                "LOG_LEVEL": "DEBUG"
+            },
+            "django": false,
+            "justMyCode": false,
+            "console": "integratedTerminal"
+        }
+    ]
+}

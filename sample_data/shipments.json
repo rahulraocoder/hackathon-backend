@@ -1,0 +1,37 @@
+[
+  {
+    "id": "ship0",
+    "order_id": "order1",
+    "carrier": "UPS",
+    "tracking": "f087d5ea-9e5b-4b86-af29-7be613b28004",
+    "status": "processing"
+  },
+  {
+    "id": "ship1",
+    "order_id": "order3",
+    "carrier": "UPS",
+    "tracking": "04e9639b-11f7-40c1-a783-8472ac087d51",
+    "status": "processing"
+  },
+  {
+    "id": "ship2",
+    "order_id": "order0",
+    "carrier": "UPS",
+    "tracking": "c08b75e7-7109-4f78-a409-55ae8397fd0b",
+    "status": "returned"
+  },
+  {
+    "id": "ship3",
+    "order_id": "order2",
+    "carrier": "USPS",
+    "tracking": "9f2fa3b7-c96a-4725-98f4-132d1718efeb",
+    "status": "delivered"
+  },
+  {
+    "id": "ship4",
+    "order_id": "order3",
+    "carrier": "USPS",
+    "tracking": "3537a031-48ea-4e6e-81f7-5c310d69df7f",
+    "status": "processing"
+  }
+]

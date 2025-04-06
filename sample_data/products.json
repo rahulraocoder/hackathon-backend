@@ -1,0 +1,37 @@
+[
+  {
+    "id": 0,
+    "name": "Good",
+    "category": "Groceries",
+    "price": 58.6,
+    "stock": 34
+  },
+  {
+    "id": 1,
+    "name": "The",
+    "category": "Electronics",
+    "price": 405.06,
+    "stock": 99
+  },
+  {
+    "id": 2,
+    "name": "Bank",
+    "category": "Electronics",
+    "price": 288.76,
+    "stock": 20
+  },
+  {
+    "id": 3,
+    "name": "Four",
+    "category": "Clothing",
+    "price": 506.16,
+    "stock": 86
+  },
+  {
+    "id": 4,
+    "name": "Able",
+    "category": "Furniture",
+    "price": 102.91,
+    "stock": 1
+  }
+]

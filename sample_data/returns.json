@@ -1,0 +1,37 @@
+[
+  {
+    "id": "ret0",
+    "order_id": "order3",
+    "product_id": 2,
+    "reason": "defective",
+    "refund": 67.09
+  },
+  {
+    "id": "ret1",
+    "order_id": "order4",
+    "product_id": 2,
+    "reason": "changed mind",
+    "refund": 107.29
+  },
+  {
+    "id": "ret2",
+    "order_id": "order4",
+    "product_id": 2,
+    "reason": "defective",
+    "refund": 47.9
+  },
+  {
+    "id": "ret3",
+    "order_id": "order2",
+    "product_id": 3,
+    "reason": "defective",
+    "refund": 401.27
+  },
+  {
+    "id": "ret4",
+    "order_id": "order2",
+    "product_id": 0,
+    "reason": "wrong item",
+    "refund": 433.6
+  }
+]
