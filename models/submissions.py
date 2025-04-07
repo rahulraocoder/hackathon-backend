@@ -13,6 +13,8 @@ class Team(Base):
     __tablename__ = 'teams'
     
     team_key = Column(String, primary_key=True)
+    team_name = Column(String)
+    avatar = Column(String)
     submission_count = Column(Integer, default=0)
     last_submission = Column(DateTime)
     best_score = Column(Float)

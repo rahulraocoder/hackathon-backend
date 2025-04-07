@@ -93,39 +93,58 @@ async def submit_metrics(
 
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error submitting metrics: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Internal server error: {str(e)}"
+        )
     finally:
         db.close()
 
 @router.get("/scores", response_model=list)
 async def get_scores(db: Session = Depends(get_db)):
     try:
-        # Get latest submission for each team
-        subquery = db.query(
-            Submission.team_key,
-            func.max(Submission.timestamp).label('max_timestamp')
-        ).group_by(Submission.team_key).subquery()
-
-        latest_submissions = db.query(Submission)\
-            .join(
-                subquery,
-                (Submission.team_key == subquery.c.team_key) & 
-                (Submission.timestamp == subquery.c.max_timestamp)
-            )\
-            .order_by(Submission.score.desc())\
-            .all()
-
-        # Get team names and build response
+        # Get all teams with their submissions
+        teams = db.query(Team).all()
         response = []
-        for sub in latest_submissions:
-            team = db.query(Team).filter_by(team_key=sub.team_key).first()
+        
+        for team in teams:
+            # Get all submissions for this team
+            submissions = db.query(Submission)\
+                .filter_by(team_key=team.team_key)\
+                .order_by(Submission.timestamp.desc())\
+                .all()
+                
+            # Get best score
+            best_score = db.query(func.max(Submission.score))\
+                .filter_by(team_key=team.team_key)\
+                .scalar()
+                
+            # Build scores array
+            scores = []
+            trend = []
+            for sub in submissions:
+                scores.append({
+                    "value": sub.score,
+                    "is_best": sub.score == best_score,
+                    "id": str(sub.id),
+                    "timestamp": sub.timestamp.isoformat()
+                })
+                trend.append(sub.score)
+                
             response.append({
+                "team_key": team.team_key,
                 "team_name": team.team_name,
-                "latest_score": sub.score,
-                "timestamp": sub.timestamp.isoformat(),
-                "status": sub.status
+                "avatar": team.avatar if hasattr(team, 'avatar') else team.team_key[0],
+                "scores": scores,
+                "best_score": best_score,
+                "trend": trend,
+                "latest_score": submissions[0].score if submissions else None,
+                "status": submissions[0].status if submissions else None
             })
             
+        # Sort by best score descending
+        response.sort(key=lambda x: x["best_score"] or 0, reverse=True)
         return JSONResponse(content=response)
     finally:
         db.close()
