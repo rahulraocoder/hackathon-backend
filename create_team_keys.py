@@ -12,6 +12,7 @@ class Team(Base):
     __tablename__ = 'teams'
     team_key = Column(String, primary_key=True)
     team_name = Column(String)
+    avatar = Column(String)
     submission_count = Column(Integer, default=0)
     last_submission = Column(DateTime)
     best_score = Column(Float)
@@ -37,6 +38,7 @@ def create_teams(num_teams=5):
             team = Team(
                 team_key=generate_team_key(),
                 team_name=f"Team {i}",
+                avatar=f"Team {i}",
                 submission_count=0,
                 best_score=None,
                 last_submission=None
