@@ -6,50 +6,51 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from config import settings
 
-# Database setup (matches evaluator's DB config)
 Base = declarative_base()
-engine = create_engine(settings.DATABASE_URL)
 
 class Team(Base):
     __tablename__ = 'teams'
     team_key = Column(String, primary_key=True)
+    team_name = Column(String)
     submission_count = Column(Integer, default=0)
     last_submission = Column(DateTime)
     best_score = Column(Float)
 
-# Drop and recreate tables to ensure clean state
-Base.metadata.drop_all(engine)
+# Database setup
+engine = create_engine(settings.DATABASE_URL)
 Base.metadata.create_all(engine)
 Session = sessionmaker(bind=engine)
 
-def generate_team_keys(num_teams):
-    session = Session()
+def generate_team_key():
     chars = string.ascii_uppercase + string.digits
+    return f"TM-{''.join(random.choices(chars, k=6))}"
+
+def create_teams(num_teams=5):
+    session = Session()
     
     try:
-        # Clear existing teams and verify schema
-        Base.metadata.create_all(engine)
+        # Clear existing teams
+        session.query(Team).delete()
         
-        # Generate teams with configured limits
+        # Create new teams with sequential names
         for i in range(1, num_teams + 1):
-            team_key = f"TM-{''.join(random.choices(chars, k=6))}" 
             team = Team(
-                team_key=team_key,
+                team_key=generate_team_key(),
+                team_name=f"Team {i}",
                 submission_count=0,
-                best_score=0.0
+                best_score=None,
+                last_submission=None
             )
             session.add(team)
         
         session.commit()
         
-        # Print results
+        # Print created teams
         teams = session.query(Team).all()
-        print(f"Generated {len(teams)} team keys:")
+        print(f"Created {len(teams)} teams:")
         for team in teams:
-            print(f"{team.team_key}")
+            print(f"- {team.team_key} ({team.team_name})")
             
-        return teams
-        
     except Exception as e:
         session.rollback()
         print(f"Error: {e}")
@@ -57,5 +58,4 @@ def generate_team_keys(num_teams):
         session.close()
 
 if __name__ == '__main__':
-    team_count = int(input("Enter number of teams: "))
-    generate_team_keys(team_count)
+    create_teams()

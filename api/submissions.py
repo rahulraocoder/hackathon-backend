@@ -1,8 +1,10 @@
 from fastapi import APIRouter, HTTPException, Body, Depends, Header, BackgroundTasks
+from fastapi.responses import JSONResponse
 from datetime import datetime
 import json
 from typing import Union
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from models.submissions import Submission, Team, get_db
 from core.scoring import calculate_score
 from api.models import MetricsPayload, CombinedMetricsPayload
@@ -98,14 +100,32 @@ async def submit_metrics(
 @router.get("/scores", response_model=list)
 async def get_scores(db: Session = Depends(get_db)):
     try:
-        teams = db.query(Team).all()
-        return [
-            {
-                "team_key": t.team_key,
-                "best_score": t.best_score,
-                "last_submission": t.last_submission.isoformat() if t.last_submission else None
-            }
-            for t in teams
-        ]
+        # Get latest submission for each team
+        subquery = db.query(
+            Submission.team_key,
+            func.max(Submission.timestamp).label('max_timestamp')
+        ).group_by(Submission.team_key).subquery()
+
+        latest_submissions = db.query(Submission)\
+            .join(
+                subquery,
+                (Submission.team_key == subquery.c.team_key) & 
+                (Submission.timestamp == subquery.c.max_timestamp)
+            )\
+            .order_by(Submission.score.desc())\
+            .all()
+
+        # Get team names and build response
+        response = []
+        for sub in latest_submissions:
+            team = db.query(Team).filter_by(team_key=sub.team_key).first()
+            response.append({
+                "team_name": team.team_name,
+                "latest_score": sub.score,
+                "timestamp": sub.timestamp.isoformat(),
+                "status": sub.status
+            })
+            
+        return JSONResponse(content=response)
     finally:
         db.close()
