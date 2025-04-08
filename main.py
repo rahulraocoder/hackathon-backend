@@ -98,6 +98,7 @@ async def broadcast_scores(db):
             "last_submission": t.last_submission.isoformat() if t.last_submission else None
         }
         for t in teams
+        if t.best_score is not None  # Only include teams with actual scores
     ]
     await manager.broadcast({"type": "scores_update", "data": scores})
 

@@ -113,8 +113,8 @@ def submit_metrics(
 @router.get("/scores", response_model=list)
 def get_scores(db = Depends(get_db)):
     try:
-        # Get all teams with their submissions
-        teams = db.query(Team).all()
+        # Get all teams regardless of submissions
+        teams = db.query(Team).order_by(Team.team_name).all()
         response = []
         
         for team in teams:
@@ -149,7 +149,8 @@ def get_scores(db = Depends(get_db)):
                 "best_score": best_score,
                 "trend": trend,
                 "latest_score": submissions[0].score if submissions else None,
-                "status": submissions[0].status if submissions else None
+                "status": submissions[0].status if submissions else None,
+                "has_submissions": len(submissions) > 0
             })
             
         # Sort by best score descending
