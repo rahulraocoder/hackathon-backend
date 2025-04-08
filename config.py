@@ -25,8 +25,22 @@ class Settings(BaseSettings):
             "debug_mode": self.DEBUG
         })
     SUBMISSIONS_PER_TEAM: int = 5
-    TEAM_KEY_PREFIX: str = "TM-"
-    DATABASE_URL: str = "mysql+pymysql://root:password@mysql/hackathon"
+    TEAM_KEY_PREFIX: str = Field("TM-", description="Prefix for team keys")
+    SECRET_KEY: str = Field(..., description="Cryptographic secret key")
+    TEAM_KEY_LENGTH: int = Field(32, description="Length of generated team keys")
+    RDS_HOST: str = Field("localhost", description="Database host")
+    RDS_PORT: int = Field(3306, description="Database port")
+    RDS_DB_NAME: str = Field("hackathon", description="Database name")
+    RDS_USERNAME: str = Field("root", description="Database username")
+    RDS_PASSWORD: str = Field("password", description="Database password")
+    DB_DRIVER: str = Field("mysql+pymysql", description="SQLAlchemy database driver")
+    
+    @property
+    def DATABASE_URL(self) -> str:
+        # URL-encode password if it contains special characters
+        from urllib.parse import quote_plus
+        password = quote_plus(self.RDS_PASSWORD)
+        return f"{self.DB_DRIVER}://{self.RDS_USERNAME}:{password}@{self.RDS_HOST}:{self.RDS_PORT}/{self.RDS_DB_NAME}?charset=utf8mb4"
     
     class Config:
         env_file = ".env"

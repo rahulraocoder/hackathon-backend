@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from models.submissions import Base
 from api.submissions import router as submissions_router
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from typing import List
 import json
@@ -15,18 +15,27 @@ settings.configure_logging()
 logger = logging.getLogger(__name__)
 logger.info("Application starting", extra={"version": "1.0"})
 
-# Database setup - use absolute path to evaluator database
-db_path = os.getenv("DATABASE_URL", "sqlite:///evaluation.db").replace("sqlite:///", "")
-print(f"Using database at: {db_path}")
-DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{db_path}")
+from config import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize database tables
+    # Essential database connection check
+    with engine.connect() as conn:
+        conn.execute(text("SELECT 1"))
+        logger.info("Database connection verified")
+    
+    # Initialize tables
     Base.metadata.create_all(bind=engine)
     yield
     
-engine = create_engine(DATABASE_URL)
+engine = create_engine(
+    settings.DATABASE_URL,
+    pool_pre_ping=True,
+    pool_recycle=3600,
+    connect_args={
+        "connect_timeout": 5
+    }
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 app = FastAPI(
