@@ -1,6 +1,19 @@
-from pydantic import BaseModel
-from typing import List, Optional
+from pydantic import BaseModel, Field, validator
+from typing import List, Optional, Dict, Any
 from datetime import datetime
+
+class PerformanceMetrics(BaseModel):
+    duration_sec: float = Field(..., gt=0, description="Execution duration in seconds")
+    cpu_avg: float = Field(..., ge=0, le=100, description="Average CPU usage %")
+    memory_avg: float = Field(..., ge=0, description="Average memory usage MB")
+    sample_count: int = Field(..., gt=0)
+    status: str = Field(..., pattern="^(success|failed|running)$")
+    timestamp: Optional[datetime] = None
+    additional_metrics: Optional[Dict[str, Any]] = None
+
+    @validator('timestamp', pre=True, always=True)
+    def set_default_timestamp(cls, v):
+        return v or datetime.utcnow()
 
 class CustomerMetric(BaseModel):
     customer_id: str
@@ -23,14 +36,6 @@ class ReturnMetric(BaseModel):
     reason: str
     total_returns: int
     total_refund_amount: float
-
-class PerformanceMetrics(BaseModel):
-    duration_sec: float
-    cpu_avg: float
-    memory_avg: float
-    sample_count: int
-    status: str
-    timestamp: Optional[datetime] = None
 
 class MetricsPayload(BaseModel):
     top_5_customers_by_total_spend: List[CustomerMetric]

@@ -1,11 +1,13 @@
 from fastapi import APIRouter, HTTPException, Body, Depends, Header, BackgroundTasks
+from pydantic import ValidationError
 from fastapi.responses import JSONResponse
 from datetime import datetime
 import json
-from typing import Union
-from sqlalchemy.orm import Session
-from sqlalchemy import func
+from typing import Union, Optional
+from sqlalchemy import func, select
+from sqlalchemy.exc import OperationalError
 from models.submissions import Submission, Team, get_db
+from tenacity import retry, stop_after_attempt, wait_exponential
 from core.scoring import calculate_score
 from api.models import MetricsPayload, CombinedMetricsPayload
 
@@ -15,11 +17,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 @router.post("/submit", response_model=dict)
-async def submit_metrics(
+def submit_metrics(
     background_tasks: BackgroundTasks,
     authorization: str = Header(..., alias="Authorization"),
     payload: Union[MetricsPayload, CombinedMetricsPayload] = Body(...),
-    db: Session = Depends(get_db),
+    db = Depends(get_db),
 ):
     # Handle both old and new payload formats
     if isinstance(payload, CombinedMetricsPayload):
@@ -29,8 +31,11 @@ async def submit_metrics(
         metrics = payload
         perf_metrics = None
     try:
-        logger.info(f"Received submission request. Authorization: {authorization}")
-        logger.debug(f"Metrics payload: {metrics}")
+        logger.info(f"Submission request from {authorization}")
+        logger.debug(f"Full payload: {payload.json()}")
+        logger.debug(f"Business metrics: {metrics}")
+        if perf_metrics:
+            logger.debug(f"Performance metrics: {perf_metrics}")
         from config import settings
         
         # Validate team key format
@@ -42,11 +47,15 @@ async def submit_metrics(
         
         # Debug log team key and existing teams
         logger.debug(f"Checking team key: {authorization}")
-        all_teams = db.query(Team).all()
+        result = db.execute(select(Team))
+        all_teams = result.scalars().all()
         logger.debug(f"Existing teams: {[t.team_key for t in all_teams]}")
         
         # Check submission limit
-        team = db.query(Team).filter_by(team_key=authorization).first()
+        result = db.execute(
+            select(Team).where(Team.team_key == authorization)
+        )
+        team = result.scalar_one_or_none()
         if not team:
             logger.error(f"No team found for key: {authorization}")
             raise HTTPException(status_code=403, detail="Invalid team key. Ensure you're using the correct team key starting with 'TM-'")
@@ -68,7 +77,7 @@ async def submit_metrics(
             score=score,
             status='completed',
             timestamp=datetime.utcnow(),
-            performance_metrics=json.dumps(perf_metrics.dict()) if perf_metrics else None
+            performance_metrics=perf_metrics.json() if perf_metrics else None
         )
         db.add(submission)
 
@@ -102,7 +111,7 @@ async def submit_metrics(
         db.close()
 
 @router.get("/scores", response_model=list)
-async def get_scores(db: Session = Depends(get_db)):
+def get_scores(db = Depends(get_db)):
     try:
         # Get all teams with their submissions
         teams = db.query(Team).all()

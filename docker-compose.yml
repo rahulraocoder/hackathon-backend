@@ -1,0 +1,38 @@
+version: '3.8'
+volumes:
+  mysql_data:
+
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: hackathon
+      MYSQL_USER: hackathon
+      MYSQL_PASSWORD: hackathon
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      interval: 5s
+      retries: 10
+
+  backend:
+    depends_on:
+      mysql:
+        condition: service_healthy
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - TEAM_KEY_PREFIX=TM-
+      - SUBMISSIONS_PER_TEAM=5
+      - DATABASE_URL=mysql+pymysql://hackathon:hackathon@mysql/hackathon
+      - UVICORN_RELOAD_EXCLUDES=*.git*
+    volumes:
+      - .:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    restart: unless-stopped

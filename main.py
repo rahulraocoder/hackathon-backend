@@ -1,5 +1,6 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 from models.submissions import Base
 from api.submissions import router as submissions_router
 import os
@@ -8,19 +9,28 @@ from sqlalchemy.orm import sessionmaker
 from typing import List
 import json
 
-# Initialize logger
+import logging
+from config import settings
+settings.configure_logging()
+logger = logging.getLogger(__name__)
+logger.info("Application starting", extra={"version": "1.0"})
 
 # Database setup - use absolute path to evaluator database
 db_path = os.getenv("DATABASE_URL", "sqlite:///evaluation.db").replace("sqlite:///", "")
 print(f"Using database at: {db_path}")
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{db_path}")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize database tables
+    Base.metadata.create_all(bind=engine)
+    yield
+    
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Create tables
-Base.metadata.create_all(bind=engine)
-
 app = FastAPI(
+    lifespan=lifespan,
     title="Hackathon Evaluator API",
     description="API for evaluating and tracking team submissions",
     version="1.0"
