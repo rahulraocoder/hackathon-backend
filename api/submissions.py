@@ -110,6 +110,65 @@ def submit_metrics(
     finally:
         db.close()
 
+@router.get("/team-metrics/{team_key}", response_model=dict)
+def get_team_metrics(team_key: str, db = Depends(get_db)):
+    """Get performance metrics for a specific team"""
+    try:
+        # Get team info
+        team = db.query(Team).filter_by(team_key=team_key).first()
+        if not team:
+            raise HTTPException(status_code=404, detail="Team not found")
+
+        # Get all submissions with performance metrics
+        submissions = db.query(Submission)\
+            .filter_by(team_key=team_key)\
+            .order_by(Submission.timestamp.asc())\
+            .all()
+
+        if not submissions:
+            raise HTTPException(status_code=404, detail="No submissions found")
+
+        # Calculate averages
+        cpu_total = 0
+        mem_total = 0
+        score_total = 0
+        valid_subs = 0
+
+        metrics = []
+        for sub in submissions:
+            if not sub.performance_metrics:
+                continue
+                
+            perf_metrics = json.loads(sub.performance_metrics)
+            metrics.append({
+                "timestamp": sub.timestamp.isoformat(),
+                "score": sub.score,
+                "cpu_avg": perf_metrics.get("cpu_avg", 0),
+                "mem_avg": perf_metrics.get("mem_avg", 0),
+                "processing_sec": perf_metrics.get("processing_sec", 0)
+            })
+
+            cpu_total += perf_metrics.get("cpu_avg", 0)
+            mem_total += perf_metrics.get("mem_avg", 0)
+            score_total += sub.score
+            valid_subs += 1
+
+        if valid_subs == 0:
+            raise HTTPException(status_code=404, detail="No metrics available")
+
+        return {
+            "team_key": team_key,
+            "metrics": metrics,
+            "overall_avg": {
+                "cpu": round(cpu_total / valid_subs, 1),
+                "memory": round(mem_total / valid_subs),
+                "score": round(score_total / valid_subs, 1)
+            }
+        }
+
+    finally:
+        db.close()
+
 @router.get("/scores", response_model=list)
 def get_scores(db = Depends(get_db)):
     try:
