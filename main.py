@@ -78,6 +78,10 @@ app.include_router(submissions_router, prefix="/api")
 async def root():
     return {"message": "Hackathon Evaluator API"}
 
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
 @app.websocket("/ws/scores")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)

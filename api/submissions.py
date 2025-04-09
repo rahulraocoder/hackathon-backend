@@ -7,7 +7,6 @@ from typing import Union, Optional
 from sqlalchemy import func, select
 from sqlalchemy.exc import OperationalError
 from models.submissions import Submission, Team, get_db
-from tenacity import retry, stop_after_attempt, wait_exponential
 from core.scoring import calculate_score
 from api.models import MetricsPayload, CombinedMetricsPayload
 
@@ -51,19 +50,24 @@ def submit_metrics(
         all_teams = result.scalars().all()
         logger.debug(f"Existing teams: {[t.team_key for t in all_teams]}")
         
-        # Check submission limit
+        # Check team exists and validate
         result = db.execute(
             select(Team).where(Team.team_key == authorization)
         )
         team = result.scalar_one_or_none()
         if not team:
-            logger.error(f"No team found for key: {authorization}")
-            raise HTTPException(status_code=403, detail="Invalid team key. Ensure you're using the correct team key starting with 'TM-'")
+            logger.error(f"Invalid team key attempt: {authorization}. Existing teams: {[t.team_key for t in all_teams]}")
+            raise HTTPException(
+                status_code=403,
+                detail="Invalid team credentials. Please verify your team key and try again."
+            )
             
+        # Check submission limit
         if team.submission_count >= settings.SUBMISSIONS_PER_TEAM:
+            logger.warning(f"Team {authorization} reached submission limit ({settings.SUBMISSIONS_PER_TEAM})")
             raise HTTPException(
                 status_code=429,
-                detail=f"Maximum {settings.SUBMISSIONS_PER_TEAM} submissions reached"
+                detail=f"You've reached the maximum allowed submissions ({settings.SUBMISSIONS_PER_TEAM}). Please wait for the next round."
             )
 
         # Convert metrics to dict and calculate score
@@ -100,12 +104,33 @@ def submit_metrics(
             "submissions_remaining": settings.SUBMISSIONS_PER_TEAM - team.submission_count
         }
 
+    except OperationalError as e:
+        db.rollback()
+        logger.error(f"Database error submitting metrics: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=503,
+            detail="Service temporarily unavailable. Please try again later."
+        )
+    except ValidationError as e:
+        db.rollback()
+        logger.error(f"Validation error in metrics payload: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid metrics data format. Please check your submission."
+        )
+    except json.JSONDecodeError as e:
+        db.rollback()
+        logger.error(f"JSON decode error: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid data format. Please check your submission."
+        )
     except Exception as e:
         db.rollback()
-        logger.error(f"Error submitting metrics: {str(e)}", exc_info=True)
+        logger.error(f"Unexpected error submitting metrics: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=500, 
-            detail=f"Internal server error: {str(e)}"
+            status_code=500,
+            detail="An unexpected error occurred. Our team has been notified."
         )
     finally:
         db.close()
