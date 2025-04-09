@@ -156,8 +156,15 @@ def get_team_metrics(team_key: str, db = Depends(get_db)):
         if valid_subs == 0:
             raise HTTPException(status_code=404, detail="No metrics available")
 
+        if not team.team_name:
+            raise HTTPException(
+                status_code=500, 
+                detail="Team name missing in database"
+            )
+
         return {
             "team_key": team_key,
+            "team_name": team.team_name,
             "metrics": metrics,
             "overall_avg": {
                 "cpu": round(cpu_total / valid_subs, 1),
