@@ -31,72 +31,99 @@ def score_exact_match_list(participant_list, perfect_list, keys) -> float:
             score += 1
     return score
 
+def validate_names(participant_names: list, perfect_names: list) -> float:
+    """Validate name mappings (30 points)"""
+    valid_names_count = len(perfect_names)
+    score_per_name = 30 / valid_names_count if valid_names_count > 0 else 0
+    score = 0.0
+
+    valid_uuid_name_map = {n['uuid']: n['name'].lower() for n in perfect_names}
+    valid_uuid_set = set(valid_uuid_name_map.keys())
+
+    for p_name in participant_names:
+        uuid = p_name['uuid']
+        name = p_name['name'].lower()
+        if uuid in valid_uuid_set and name == valid_uuid_name_map[uuid]:
+            score += score_per_name
+
+    return min(30, score)
+
+def score_data_quality(participant_metrics: Dict, perfect_metrics: Dict) -> float:
+    """Score data quality metrics (25 points)"""
+    score = 0
+    perfect = perfect_metrics['data_quality_metrics']
+    participant = participant_metrics.get('data_quality_metrics', {})
+    
+    # Each invalid record type is worth 5 points (5 types x 5 points = 25)
+    for key in ['customers', 'products', 'shipments', 'returns', 'orders']:
+        perfect_key = f'invalid_{key}_records'
+        if perfect_key in participant:
+            diff = abs(perfect[perfect_key] - participant[perfect_key])
+            score += max(0, 5 - diff)  # Lose 1 point per invalid record difference
+    
+    return min(25, score)
+
 def calculate_score(participant_metrics: Dict) -> float:
     """
-    Calculate score (0-100) by comparing participant metrics with perfect benchmarks.
-    Scoring Breakdown:
-        - Customers (30 points): ranking, amounts, details
-        - Products (30 points): ranking, revenue, details  
-        - Shipping (20 points): performance metrics
-        - Returns (20 points): analysis accuracy
+    Calculate score (0-75) using new scoring system:
+    - Name matching: 30 points
+    - Data quality: 25 points
+    - Business metrics: 20 points
     """
     start_time = time.time()
     perfect_metrics = load_perfect_metrics()
     score = 0.0
 
-    required_sections = [
-        'top_5_customers_by_total_spend',
-        'top_5_products_by_revenue',
-        'shipping_performance_by_carrier',
-        'return_reason_analysis'
-    ]
-    for section in required_sections:
+    # Validate required sections
+    required = ['valid_names', 'data_quality_metrics', 'business_metrics']
+    for section in required:
         if section not in participant_metrics:
-            raise ValueError(f"Missing required metrics section: {section}")
+            raise ValueError(f"Missing required section: {section}")
 
     try:
-        # Customers (30 points)
-        score += score_exact_match_list(
-            participant_metrics['top_5_customers_by_total_spend'],
-            perfect_metrics['top_5_customers_by_total_spend'],
-            ['customer_id', 'total_spent', 'customer_name']
+        # Name matching (30 points)
+        score += validate_names(
+            participant_metrics['valid_names'],
+            perfect_metrics['valid_names']
         )
 
-        # Products (30 points)
-        score += score_exact_match_list(
-            participant_metrics['top_5_products_by_revenue'],
-            perfect_metrics['top_5_products_by_revenue'],
-            ['product_id', 'total_revenue', 'product_name']
-        )
+        # Data quality (25 points)
+        score += score_data_quality(participant_metrics, perfect_metrics)
 
-        # Shipping (20 points)
-        perfect_shipping = {s['carrier']: s for s in perfect_metrics['shipping_performance_by_carrier']}
-        for s in participant_metrics['shipping_performance_by_carrier']:
-            perfect = perfect_shipping.get(s['carrier'])
-            if not perfect:
-                continue
-            on_time = s.get('on_time_deliveries', 0) / s['total_shipments'] * 100
-            if on_time == perfect['on_time_percentage']:
-                score += 10
-            if set(s.get('problem_issues', [])) == set(perfect['problem_issues']):
-                score += 10
+        # Business metrics (20 points)
+        business_score = 0
+        perfect_biz = perfect_metrics['business_metrics']
+        participant_biz = participant_metrics['business_metrics']
+        
+        # Customers (5 points)
+        if is_match(participant_biz['top_5_customers_by_total_spend'][0],
+                   perfect_biz['top_5_customers_by_total_spend'][0],
+                   ['customer_id', 'total_spent']):
+            business_score += 5
 
-        # Returns (20 points)
-        perfect_returns = {r['reason']: r for r in perfect_metrics['return_reason_analysis']}
-        for r in participant_metrics['return_reason_analysis']:
-            perfect = perfect_returns.get(r['reason'])
-            if not perfect:
-                continue
-            if r['total_returns'] == perfect['return_percentage']:
-                score += 10
-            if r['total_refund_amount'] == perfect['average_refund_amount']:
-                score += 10
+        # Products (5 points)
+        if is_match(participant_biz['top_5_products_by_revenue'][0],
+                   perfect_biz['top_5_products_by_revenue'][0],
+                   ['product_id', 'total_revenue']):
+            business_score += 5
+
+        # Shipping (5 points)
+        if (participant_biz['shipping_performance_by_carrier'][0]['on_time_deliveries'] == 
+            perfect_biz['shipping_performance_by_carrier'][0]['on_time_deliveries']):
+            business_score += 5
+
+        # Returns (5 points)
+        if (participant_biz['return_reason_analysis'][0]['total_returns'] == 
+            perfect_biz['return_reason_analysis'][0]['total_returns']):
+            business_score += 5
+
+        score += min(20, business_score)
 
     except Exception as e:
         logger.error(f"Error calculating score: {e}")
         raise ValueError("Invalid metrics format") from e
 
     exec_time = time.time() - start_time
-    logger.info(f"Execution Time (not scored): {exec_time:.4f} seconds")
+    logger.info(f"Execution Time: {exec_time:.4f} seconds")
 
-    return min(100.0, round(score, 2))
+    return min(75.0, round(score, 2))

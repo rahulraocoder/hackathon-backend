@@ -100,13 +100,30 @@ for reason, stats in return_reasons.items():
 
 # Generate perfect evaluation file
 perfect_evaluation = {
-    'top_5_customers_by_total_spend': top_customers,
-    'top_5_products_by_revenue': top_products,
-    'shipping_performance_by_carrier': shipping_metrics,
-    'return_reason_analysis': return_metrics
+    'valid_names': [],
+    'data_quality_metrics': {
+        'invalid_customers_records': 0,
+        'invalid_products_records': 0,
+        'invalid_shipment_records': 0,
+        'invalid_return_records': 0,
+        'invalid_order_records': 0
+    },
+    'business_metrics': {
+        'top_5_customers_by_total_spend': top_customers,
+        'top_5_products_by_revenue': top_products,
+        'shipping_performance_by_carrier': shipping_metrics,
+        'return_reason_analysis': return_metrics
+    },
+    'performance_metrics': {
+        'duration_sec': 0,
+        'cpu_avg': 0,
+        'memory_avg': 0,
+        'sample_count': 0,
+        'status': ""
+    }
 }
 
-with open('hackathon-template/evaluator/perfect_evaluation.json', 'w') as f:
+with open('perfect_evaluation.json', 'w') as f:
     json.dump(perfect_evaluation, f, indent=2)
 
 print("Generated perfect_evaluation.json from sample data")

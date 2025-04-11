@@ -43,6 +43,26 @@ class MetricsPayload(BaseModel):
     shipping_performance_by_carrier: List[ShippingMetric] 
     return_reason_analysis: List[ReturnMetric]
 
+class ValidName(BaseModel):
+    uuid: str
+    name: str
+
+class DataQualityMetrics(BaseModel):
+    invalid_customers_records: int = Field(..., ge=0)
+    invalid_products_records: int = Field(..., ge=0)
+    invalid_shipment_records: int = Field(..., ge=0)
+    invalid_return_records: int = Field(..., ge=0)
+    invalid_order_records: int = Field(..., ge=0)
+
+class BusinessMetrics(MetricsPayload):
+    pass  # Inherits all fields from MetricsPayload
+
+class NewEvaluationPayload(BaseModel):
+    valid_names: List[ValidName]
+    data_quality_metrics: DataQualityMetrics
+    business_metrics: BusinessMetrics
+    performance_metrics: PerformanceMetrics
+
 class CombinedMetricsPayload(BaseModel):
     business_metrics: MetricsPayload
     performance_metrics: PerformanceMetrics

@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import OperationalError
 from models.submissions import Submission, Team, get_db
 from core.scoring import calculate_score
-from api.models import MetricsPayload, CombinedMetricsPayload
+from api.models import MetricsPayload, CombinedMetricsPayload, NewEvaluationPayload
 
 router = APIRouter()
 
@@ -19,14 +19,25 @@ logger = logging.getLogger(__name__)
 def submit_metrics(
     background_tasks: BackgroundTasks,
     authorization: str = Header(..., alias="Authorization"),
-    payload: Union[MetricsPayload, CombinedMetricsPayload] = Body(...),
+    payload: Union[MetricsPayload, CombinedMetricsPayload, NewEvaluationPayload] = Body(...),
     db = Depends(get_db),
 ):
-    # Handle both old and new payload formats
-    if isinstance(payload, CombinedMetricsPayload):
-        metrics = payload.business_metrics
+    # Handle all payload formats
+    if isinstance(payload, NewEvaluationPayload):
+        metrics = {
+            'valid_names': [item.dict() for item in payload.valid_names],
+            'data_quality_metrics': payload.data_quality_metrics.dict(),
+            'business_metrics': payload.business_metrics.dict()
+        }
         perf_metrics = payload.performance_metrics
-    else:
+    elif isinstance(payload, CombinedMetricsPayload):
+        metrics = {
+            'valid_names': [],
+            'data_quality_metrics': {},
+            'business_metrics': payload.business_metrics.dict()
+        }
+        perf_metrics = payload.performance_metrics
+    else:  # Old MetricsPayload
         metrics = payload
         perf_metrics = None
     try:
@@ -70,14 +81,13 @@ def submit_metrics(
                 detail=f"You've reached the maximum allowed submissions ({settings.SUBMISSIONS_PER_TEAM}). Please wait for the next round."
             )
 
-        # Convert metrics to dict and calculate score
-        metrics_dict = metrics.dict()
-        score = calculate_score(metrics_dict)
+        # Calculate score (metrics is already a dict for NewEvaluationPayload)
+        score = calculate_score(metrics)
 
         # Create submission record
         submission = Submission(
             team_key=authorization,
-            metrics=json.dumps(metrics_dict),
+            metrics=json.dumps(metrics),
             score=score,
             status='completed',
             timestamp=datetime.now(),
