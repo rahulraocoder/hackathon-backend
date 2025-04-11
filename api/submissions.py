@@ -80,14 +80,14 @@ def submit_metrics(
             metrics=json.dumps(metrics_dict),
             score=score,
             status='completed',
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(),
             performance_metrics=perf_metrics.json() if perf_metrics else None
         )
         db.add(submission)
 
         # Update team counters
         team.submission_count = (team.submission_count or 0) + 1
-        team.last_submission = datetime.utcnow()
+        team.last_submission = datetime.now()
         if not team.best_score or score > team.best_score:
             team.best_score = score
 
